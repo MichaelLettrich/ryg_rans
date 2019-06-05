@@ -1,15 +1,11 @@
-LIBS=-lm -lrt
+CXXFLAGS_ALL = -MD -MP -Wall -Wswitch -Werror -pedantic -g -std=c++17 -march=native -fno-strict-aliasing
+LDFLAGS =  
+LDLIBS = 
 
-all: exam exam64 exam_simd_sse41 exam_alias
+CXX = g++
+COMP = $(CXX) $(CXXFLAGS_ALL) $(CXXFLAGS_TGT) -o $@ -c $<
+LINK = $(CXX) $(LDFLAGS) $(LDFLAGS_TGT) -o $@ $^ $(LDLIBS_TGT) $(LDLIBS)
+COMPLINK = $(CXX) $(CXXFLAGS_ALL) $(CXXFLAGS_TGT) $(LDFLAGS) $(LDFLAGS_TGT) -o $@ $< $(LDLIBS_TGT) $(LDLIBS)
+STATIC = ar rcs $@ $^
 
-exam: main.cpp platform.h rans_byte.h
-	g++ -o $@ $< -O3 $(LIBS)
-
-exam64: main64.cpp platform.h rans64.h
-	g++ -o $@ $< -O3 $(LIBS)
-
-exam_simd_sse41: main_simd.cpp platform.h rans_word_sse41.h
-	g++ -o $@ $< -O3 -msse4.1 $(LIBS)
-
-exam_alias: main_alias.cpp platform.h rans_byte.h
-	g++ -o $@ $< -O3 $(LIBS)
+include Rules.mk
