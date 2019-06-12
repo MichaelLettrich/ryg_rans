@@ -9,13 +9,12 @@
 #include <nlohmann/json.hpp>
 #include "librans/rans.h"
 
-#include "platform.h"
-
 #include "helper.h"
 
 // This is just the sample program. All the meat is in rans_byte.h.
 using json = nlohmann::json;
 using source_t = uint8_t;
+static const uint REPETITIONS = 5;
 
 ////////////////////////////////////////////////////////////////
 // use this definition for 32bit coder/decoder
@@ -34,8 +33,7 @@ using stream_t = uint32_t;
 using Rans = rans::Coder<coder_t,stream_t>;
 using RansEncSymbol = rans::EncoderSymbol<coder_t>;
 #endif
-
-static const uint REPETITIONS = 5;
+////////////////////////////////////////////////////////////////
 
 int main(int argc, char* argv[])
 {

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "platform.h"
 #include <string>
 #include <vector>
 #include <fstream>
