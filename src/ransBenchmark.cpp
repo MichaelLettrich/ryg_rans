@@ -85,7 +85,7 @@ int main(int argc, char* argv[])
 		dsyms.emplace_back(symbolStats.second, symbolStats.first);
 	}
 
-	std::cout << "Source Size :" << tokens.size()*symbolRangeBits * BIT_TO_BITES << " Bytes"<< std::endl;
+	std::cout << "Source Size :" << tokens.size()*symbolRangeBits * BIT_TO_BYTES << " Bytes"<< std::endl;
 
 	// ---- regular rANS encode/decode. Typical usage.
 	std::cout << std::endl <<"Non-Interleaved:" << std::endl;

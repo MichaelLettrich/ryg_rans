@@ -11,8 +11,8 @@
 using json = nlohmann::json;
 
 
-static constexpr uint32_t BIT_TO_BITES = 8;
-static constexpr uint32_t BIT_TO_MIB = 1048576 * BIT_TO_BITES;
+static constexpr uint32_t BIT_TO_BYTES = 8;
+static constexpr uint32_t BIT_TO_MIB = 1048576 * BIT_TO_BYTES;
 
 void panic(const char *fmt, ...);
 
