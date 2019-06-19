@@ -7,8 +7,7 @@
 #include <iomanip>
 #include <chrono>
 
-#include "rapidjson/prettywriter.h"
-#include "rapidjson/stringbuffer.h"
+#include "rapidjson/document.h"
 
 namespace json = rapidjson;
 
@@ -73,25 +72,26 @@ std::string toString(ExecutionMode mode);
 std::string toString(CodingMode mode);
 
 template<typename Decorated>
-void timedRun(json::PrettyWriter<json::StringBuffer>& runSummary, size_t sizeUncompressed, ExecutionMode executionMode, CodingMode codingMode, size_t numberOfRuns, Decorated && function)
+json::Value timedRun(json::Document::AllocatorType& runSummaryAllocator, size_t sizeUncompressed, ExecutionMode executionMode, CodingMode codingMode, size_t numberOfRuns, Decorated && function)
 {
 	const std::string execModeStr = toString(executionMode);
 	const std::string codingModeStr = toString(codingMode);
-	// run benchmark a certain amount of times
-	runSummary.Key(codingModeStr.c_str());
-	runSummary.StartArray();
+
+	json::Value bandwidths(json::kArrayType);
 	std::cout << "Bandwidth " << codingModeStr << ": [";
+
+	// run benchmark a certain amount of times
 	for (size_t run=0; run < numberOfRuns; run++) {
 		auto duration = executionTimer(function);
 		//		results.push_back(1.0 * (runSummary["NumberOfSymbols"].GetUint() * runSummary["SymbolRange"].GetUint())/ (duration.count() * BIT_TO_MIB)); //Bit -> MiB
 
 		const double bandwidth = 1.0* (sizeUncompressed / (duration.count() * BIT_TO_MIB)); //Bit -> MiB
-		runSummary.Double(bandwidth);
+		bandwidths.PushBack(bandwidth,runSummaryAllocator);
 		std::cout << std::setprecision(4) << bandwidth;
 		if (run<numberOfRuns-1){
 			std::cout << ", ";
 		}
 	}
-	runSummary.EndArray();
 	std::cout << "] MiB/s" << std::endl;
+	return std::move(bandwidths);
 }

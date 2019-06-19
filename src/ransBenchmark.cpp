@@ -8,6 +8,8 @@
 
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/prettywriter.h"
+#include "rapidjson/document.h"
+
 
 #include "librans/rans.h"
 
@@ -39,9 +41,8 @@ using RansEncSymbol = rans::EncoderSymbol<coder_t>;
 
 int main(int argc, char* argv[])
 {
-	json::StringBuffer ss;
-	json::PrettyWriter<json::StringBuffer> runSummary(ss);
-	runSummary.StartObject();
+	json::Document runSummary;
+	runSummary.SetObject();
 
 	cmd_args parameters;
 	read_args(argc, argv,parameters);
@@ -51,25 +52,20 @@ int main(int argc, char* argv[])
 	std::cout << "Filename: " << parameters.filename << std::endl;
 	std::cout << "Probability Bits: " << prob_bits << std::endl;
 
-	runSummary.Key("Filename");
-	runSummary.String(parameters.filename.c_str());
-	runSummary.Key("ProbabilityBits");
-	runSummary.Uint(prob_bits);
+	runSummary.AddMember("Filename",json::Value().SetString(parameters.filename.c_str(),runSummary.GetAllocator()),runSummary.GetAllocator());
+	runSummary.AddMember("ProbabilityBits",json::Value(prob_bits),runSummary.GetAllocator());
 
 	std::vector<source_t> tokens;
 	read_file(parameters.filename,&tokens);
 	std::cout << "Symbols:" << tokens.size() << std::endl;
-	runSummary.Key("NumberOfSymbols");
-	runSummary.Uint(tokens.size());
-
+	runSummary.AddMember("NumberOfSymbols",json::Value(tokens.size()),runSummary.GetAllocator());
 
 	rans::SymbolStatistics stats(tokens);
 	stats.rescaleFrequencyTable(prob_scale);
 	auto symbolRangeBits = stats.getSymbolRangeBits();
 	std::cout << "Min: "<< stats.minSymbol() <<" Max: " << stats.maxSymbol() << " Range: " << symbolRangeBits  << "Bit" << std::endl;
 
-	runSummary.Key("SymbolRange");
-	runSummary.Uint(symbolRangeBits);
+	runSummary.AddMember("SymbolRange",json::Value(symbolRangeBits),runSummary.GetAllocator());
 
 	// cumlative->symbol table
 	// this is super brute force
@@ -99,9 +95,9 @@ int main(int argc, char* argv[])
 
 	// ---- regular rANS encode/decode. Typical usage.
 	std::cout << std::endl <<"Non-Interleaved:" << std::endl;
-	runSummary.Key(toString(ExecutionMode::NonInterleaved).c_str());
-	runSummary.StartObject();
-	timedRun(runSummary,symbolRangeBits*tokens.size(), ExecutionMode::NonInterleaved,CodingMode::Encode,REPETITIONS,
+	json::Value nonInterleaved(json::kObjectType);
+
+	nonInterleaved.AddMember("Encode",timedRun(runSummary.GetAllocator(), symbolRangeBits*tokens.size(), ExecutionMode::NonInterleaved,CodingMode::Encode,REPETITIONS,
 			[&](){
 		rans::State<coder_t> rans;
 		Rans::encInit(&rans);
@@ -117,9 +113,9 @@ int main(int argc, char* argv[])
 		}
 		Rans::encFlush(&rans, &ptr);
 		rans_begin = ptr;
-	});
+	}),runSummary.GetAllocator());
 
-	timedRun(runSummary,symbolRangeBits*tokens.size(),ExecutionMode::NonInterleaved,CodingMode::Decode,REPETITIONS,[&](){
+	nonInterleaved.AddMember("Decode",timedRun(runSummary.GetAllocator(),symbolRangeBits*tokens.size(),ExecutionMode::NonInterleaved,CodingMode::Decode,REPETITIONS,[&](){
 		rans::State<coder_t> rans;
 		stream_t* ptr = rans_begin;
 		Rans::decInit(&rans, &ptr);
@@ -131,13 +127,14 @@ int main(int argc, char* argv[])
 			//            std::cout << "s: " << s << ", dsyms[" << normalized << "]: " << dsyms[normalized].freq << std::endl;
 			Rans::decAdvanceSymbol(&rans, &ptr, &dsyms[normalized], prob_bits);
 		}
-	});
+	}),runSummary.GetAllocator());
 
 	unsigned int encodeSize = static_cast<unsigned int>(&out_buf.back() - rans_begin) * sizeof(stream_t);
 	std::cout << "Encode Size :" << encodeSize << " Bytes"<< std::endl;
-	runSummary.Key("Size");
-	runSummary.Uint(encodeSize);
-	runSummary.EndObject();
+	nonInterleaved.AddMember("Size",encodeSize,runSummary.GetAllocator());
+
+	runSummary.AddMember("NonInterleaved",nonInterleaved,runSummary.GetAllocator());
+
 
 	// check decode results
 	if (memcmp(tokens.data(), dec_bytes.data(), tokens.size()*sizeof(source_t)) == 0)
@@ -151,9 +148,9 @@ int main(int argc, char* argv[])
 
 	// try interleaved rANS encode
 	std::cout << std::endl <<"Interleaved:" << std::endl;
-	runSummary.Key(toString(ExecutionMode::Interleaved).c_str());
-	runSummary.StartObject();
-	timedRun(runSummary, symbolRangeBits*tokens.size(), ExecutionMode::Interleaved,CodingMode::Encode,REPETITIONS,
+	json::Value interleaved(json::kObjectType);
+
+	interleaved.AddMember("Encode",timedRun(runSummary.GetAllocator(), symbolRangeBits*tokens.size(), ExecutionMode::Interleaved,CodingMode::Encode,REPETITIONS,
 			[&](){
 		rans::State<coder_t> rans0, rans1;
 		Rans::encInit(&rans0);
@@ -183,9 +180,9 @@ int main(int argc, char* argv[])
 		Rans::encFlush(&rans1, &ptr);
 		Rans::encFlush(&rans0, &ptr);
 		rans_begin = ptr;
-	});
+	}),runSummary.GetAllocator());
 
-	timedRun(runSummary, symbolRangeBits*tokens.size(), ExecutionMode::Interleaved,CodingMode::Decode,REPETITIONS,
+	interleaved.AddMember("Decode",timedRun(runSummary.GetAllocator(), symbolRangeBits*tokens.size(), ExecutionMode::Interleaved,CodingMode::Decode,REPETITIONS,
 			[&](){
 		rans::State<coder_t> rans0, rans1;
 		stream_t* ptr = rans_begin;
@@ -212,14 +209,12 @@ int main(int argc, char* argv[])
 			const size_t normalized = s0 - stats.minSymbol();
 			Rans::decAdvanceSymbol(&rans0, &ptr, &dsyms[normalized], prob_bits);
 		}
-	});
+	}),runSummary.GetAllocator());
 
 	encodeSize = static_cast<unsigned int>(&out_buf.back() - rans_begin) * sizeof(stream_t);
 	std::cout << "Encode Size :" << encodeSize << " Bytes"<< std::endl;
-	runSummary.Key("Size");
-	runSummary.Uint(encodeSize);
-	runSummary.EndObject();
-	runSummary.EndObject();
+	interleaved.AddMember("Size",encodeSize,runSummary.GetAllocator());
+	runSummary.AddMember("Interleaved",interleaved,runSummary.GetAllocator());
 
 	// check decode results
 	if (memcmp(tokens.data(), dec_bytes.data(), tokens.size()*sizeof(source_t)) == 0)
@@ -228,8 +223,10 @@ int main(int argc, char* argv[])
 		printf("ERROR: Decoder failed tests.\n");
 
 	std::ofstream f("summary.json");
-
-	f << std::setw(4) << ss.GetString() << std::endl;
+	rapidjson::StringBuffer buffer;
+	rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
+	runSummary.Accept(writer);
+	f << std::setw(4) << buffer.GetString() << std::endl;
 	f.close();
 	return 0;
 }
