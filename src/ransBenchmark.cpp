@@ -6,13 +6,15 @@
 #include <iomanip>
 #include <chrono>
 
-#include <nlohmann/json.hpp>
+#include "rapidjson/stringbuffer.h"
+#include "rapidjson/prettywriter.h"
+
 #include "librans/rans.h"
 
 #include "helper.h"
 
 // This is just the sample program. All the meat is in rans_byte.h.
-using json = nlohmann::json;
+namespace json = rapidjson;
 using source_t = uint8_t;
 static const uint REPETITIONS = 5;
 
@@ -37,7 +39,9 @@ using RansEncSymbol = rans::EncoderSymbol<coder_t>;
 
 int main(int argc, char* argv[])
 {
-	json run_summary;
+	json::StringBuffer ss;
+	json::PrettyWriter<json::StringBuffer> runSummary(ss);
+	runSummary.StartObject();
 
 	cmd_args parameters;
 	read_args(argc, argv,parameters);
@@ -47,19 +51,25 @@ int main(int argc, char* argv[])
 	std::cout << "Filename: " << parameters.filename << std::endl;
 	std::cout << "Probability Bits: " << prob_bits << std::endl;
 
-	run_summary["Filename"] = parameters.filename;
-	run_summary["ProbabilityBits"] = prob_bits;
+	runSummary.Key("Filename");
+	runSummary.String(parameters.filename.c_str());
+	runSummary.Key("ProbabilityBits");
+	runSummary.Uint(prob_bits);
 
 	std::vector<source_t> tokens;
 	read_file(parameters.filename,&tokens);
 	std::cout << "Symbols:" << tokens.size() << std::endl;
-	run_summary["NumberOfSymbols"] = tokens.size();
+	runSummary.Key("NumberOfSymbols");
+	runSummary.Uint(tokens.size());
+
 
 	rans::SymbolStatistics stats(tokens);
 	stats.rescaleFrequencyTable(prob_scale);
 	auto symbolRangeBits = stats.getSymbolRangeBits();
 	std::cout << "Min: "<< stats.minSymbol() <<" Max: " << stats.maxSymbol() << " Range: " << symbolRangeBits  << "Bit" << std::endl;
-	run_summary["SymbolRange"] = symbolRangeBits;
+
+	runSummary.Key("SymbolRange");
+	runSummary.Uint(symbolRangeBits);
 
 	// cumlative->symbol table
 	// this is super brute force
@@ -89,7 +99,9 @@ int main(int argc, char* argv[])
 
 	// ---- regular rANS encode/decode. Typical usage.
 	std::cout << std::endl <<"Non-Interleaved:" << std::endl;
-	timedRun(run_summary,ExecutionMode::NonInterleaved,CodingMode::Encode,REPETITIONS,
+	runSummary.Key(toString(ExecutionMode::NonInterleaved).c_str());
+	runSummary.StartObject();
+	timedRun(runSummary,symbolRangeBits*tokens.size(), ExecutionMode::NonInterleaved,CodingMode::Encode,REPETITIONS,
 			[&](){
 		rans::State<coder_t> rans;
 		Rans::encInit(&rans);
@@ -107,7 +119,7 @@ int main(int argc, char* argv[])
 		rans_begin = ptr;
 	});
 
-	timedRun(run_summary,ExecutionMode::NonInterleaved,CodingMode::Decode,REPETITIONS,[&](){
+	timedRun(runSummary,symbolRangeBits*tokens.size(),ExecutionMode::NonInterleaved,CodingMode::Decode,REPETITIONS,[&](){
 		rans::State<coder_t> rans;
 		stream_t* ptr = rans_begin;
 		Rans::decInit(&rans, &ptr);
@@ -123,7 +135,9 @@ int main(int argc, char* argv[])
 
 	unsigned int encodeSize = static_cast<unsigned int>(&out_buf.back() - rans_begin) * sizeof(stream_t);
 	std::cout << "Encode Size :" << encodeSize << " Bytes"<< std::endl;
-	run_summary["NonInterleaved"]["Size"].push_back(encodeSize);
+	runSummary.Key("Size");
+	runSummary.Uint(encodeSize);
+	runSummary.EndObject();
 
 	// check decode results
 	if (memcmp(tokens.data(), dec_bytes.data(), tokens.size()*sizeof(source_t)) == 0)
@@ -137,8 +151,9 @@ int main(int argc, char* argv[])
 
 	// try interleaved rANS encode
 	std::cout << std::endl <<"Interleaved:" << std::endl;
-
-	timedRun(run_summary,ExecutionMode::Interleaved,CodingMode::Encode,REPETITIONS,
+	runSummary.Key(toString(ExecutionMode::Interleaved).c_str());
+	runSummary.StartObject();
+	timedRun(runSummary, symbolRangeBits*tokens.size(), ExecutionMode::Interleaved,CodingMode::Encode,REPETITIONS,
 			[&](){
 		rans::State<coder_t> rans0, rans1;
 		Rans::encInit(&rans0);
@@ -170,7 +185,7 @@ int main(int argc, char* argv[])
 		rans_begin = ptr;
 	});
 
-	timedRun(run_summary,ExecutionMode::Interleaved,CodingMode::Decode,REPETITIONS,
+	timedRun(runSummary, symbolRangeBits*tokens.size(), ExecutionMode::Interleaved,CodingMode::Decode,REPETITIONS,
 			[&](){
 		rans::State<coder_t> rans0, rans1;
 		stream_t* ptr = rans_begin;
@@ -201,7 +216,10 @@ int main(int argc, char* argv[])
 
 	encodeSize = static_cast<unsigned int>(&out_buf.back() - rans_begin) * sizeof(stream_t);
 	std::cout << "Encode Size :" << encodeSize << " Bytes"<< std::endl;
-	run_summary["Interleaved"]["Size"].push_back(encodeSize);
+	runSummary.Key("Size");
+	runSummary.Uint(encodeSize);
+	runSummary.EndObject();
+	runSummary.EndObject();
 
 	// check decode results
 	if (memcmp(tokens.data(), dec_bytes.data(), tokens.size()*sizeof(source_t)) == 0)
@@ -210,7 +228,8 @@ int main(int argc, char* argv[])
 		printf("ERROR: Decoder failed tests.\n");
 
 	std::ofstream f("summary.json");
-	f << std::setw(4) << run_summary << std::endl;
+
+	f << std::setw(4) << ss.GetString() << std::endl;
 	f.close();
 	return 0;
 }

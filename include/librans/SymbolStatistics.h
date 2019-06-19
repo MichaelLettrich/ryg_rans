@@ -67,6 +67,8 @@ void SymbolStatistics::buildFrequencyTable(const std::vector<T>& tokens){
 	}
 }
 
+
+
 }  // namespace rans
 
 

@@ -8,7 +8,6 @@ SRC_$(d) :=  $(d)/helper.cpp
 OBJS_$(d) := $(subst .cpp,.o,$(SRC_$(d)))
 DEPS_$(d) := $(subst .cpp,.d,$(SRC_$(d)))
 
-
 $(OBJS_$(d)): CXXFLAGS_TGT:= $(CXXFLAGS_TGT)-I$(d) -Iinclude
 $(OBJS_$(d)): $(SRC_$(d))
 	$(COMP)

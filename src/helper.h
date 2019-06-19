@@ -7,9 +7,10 @@
 #include <iomanip>
 #include <chrono>
 
-#include <nlohmann/json.hpp>
-using json = nlohmann::json;
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/stringbuffer.h"
 
+namespace json = rapidjson;
 
 static constexpr uint32_t BIT_TO_BYTES = 8;
 static constexpr uint32_t BIT_TO_MIB = 1048576 * BIT_TO_BYTES;
@@ -72,23 +73,25 @@ std::string toString(ExecutionMode mode);
 std::string toString(CodingMode mode);
 
 template<typename Decorated>
-void timedRun(json& runSummary, ExecutionMode executionMode, CodingMode codingMode, size_t numberOfRuns, Decorated && function)
+void timedRun(json::PrettyWriter<json::StringBuffer>& runSummary, size_t sizeUncompressed, ExecutionMode executionMode, CodingMode codingMode, size_t numberOfRuns, Decorated && function)
 {
 	const std::string execModeStr = toString(executionMode);
 	const std::string codingModeStr = toString(codingMode);
-	std::vector<double> results;
 	// run benchmark a certain amount of times
+	runSummary.Key(codingModeStr.c_str());
+	runSummary.StartArray();
+	std::cout << "Bandwidth " << codingModeStr << ": [";
 	for (size_t run=0; run < numberOfRuns; run++) {
 		auto duration = executionTimer(function);
-		results.push_back(1.0 * (runSummary.at("NumberOfSymbols").get<size_t>() * runSummary.at("SymbolRange").get<size_t>())  / (duration.count() * BIT_TO_MIB)); //Bit -> MiB
-	}
-	std::cout << "Bandwidth " << codingModeStr << ": [";
-	for (auto result : results){
-		std::cout << std::setprecision(4) << result << ", ";
-	}
-	std::cout << "] MiB/s" << std::endl;
+		//		results.push_back(1.0 * (runSummary["NumberOfSymbols"].GetUint() * runSummary["SymbolRange"].GetUint())/ (duration.count() * BIT_TO_MIB)); //Bit -> MiB
 
-	json tmp(results);
-	runSummary[execModeStr][codingModeStr] = json::array();
-	runSummary[execModeStr][codingModeStr].insert(runSummary[execModeStr][codingModeStr].begin(),tmp.begin(),tmp.end());
+		const double bandwidth = 1.0* (sizeUncompressed / (duration.count() * BIT_TO_MIB)); //Bit -> MiB
+		runSummary.Double(bandwidth);
+		std::cout << std::setprecision(4) << bandwidth;
+		if (run<numberOfRuns-1){
+			std::cout << ", ";
+		}
+	}
+	runSummary.EndArray();
+	std::cout << "] MiB/s" << std::endl;
 }
