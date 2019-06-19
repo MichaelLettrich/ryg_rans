@@ -6,7 +6,7 @@
 #include <iomanip>
 #include <chrono>
 
-#include "rapidjson/stringbuffer.h"
+#include "rapidjson/ostreamwrapper.h"
 #include "rapidjson/prettywriter.h"
 #include "rapidjson/document.h"
 
@@ -223,10 +223,8 @@ int main(int argc, char* argv[])
 		printf("ERROR: Decoder failed tests.\n");
 
 	std::ofstream f("summary.json");
-	rapidjson::StringBuffer buffer;
-	rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
+	json::OStreamWrapper osw(f);
+	rapidjson::PrettyWriter<json::OStreamWrapper> writer(osw);
 	runSummary.Accept(writer);
-	f << std::setw(4) << buffer.GetString() << std::endl;
-	f.close();
 	return 0;
 }
