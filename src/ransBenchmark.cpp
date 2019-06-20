@@ -9,6 +9,7 @@
 #include "rapidjson/ostreamwrapper.h"
 #include "rapidjson/prettywriter.h"
 #include "rapidjson/document.h"
+#include "rapidjson/istreamwrapper.h"
 
 
 #include "librans/rans.h"
@@ -53,19 +54,19 @@ int main(int argc, char* argv[])
 	std::cout << "Probability Bits: " << prob_bits << std::endl;
 
 	runSummary.AddMember("Filename",json::Value().SetString(parameters.filename.c_str(),runSummary.GetAllocator()),runSummary.GetAllocator());
-	runSummary.AddMember("ProbabilityBits",json::Value(prob_bits),runSummary.GetAllocator());
+	runSummary.AddMember("ProbabilityBits",prob_bits,runSummary.GetAllocator());
 
 	std::vector<source_t> tokens;
 	read_file(parameters.filename,&tokens);
 	std::cout << "Symbols:" << tokens.size() << std::endl;
-	runSummary.AddMember("NumberOfSymbols",json::Value(tokens.size()),runSummary.GetAllocator());
+	runSummary.AddMember("NumberOfSymbols",tokens.size(),runSummary.GetAllocator());
 
 	rans::SymbolStatistics stats(tokens);
 	stats.rescaleFrequencyTable(prob_scale);
 	auto symbolRangeBits = stats.getSymbolRangeBits();
 	std::cout << "Min: "<< stats.minSymbol() <<" Max: " << stats.maxSymbol() << " Range: " << symbolRangeBits  << "Bit" << std::endl;
 
-	runSummary.AddMember("SymbolRange",json::Value(symbolRangeBits),runSummary.GetAllocator());
+	runSummary.AddMember("SymbolRange",symbolRangeBits,runSummary.GetAllocator());
 
 	// cumlative->symbol table
 	// this is super brute force
