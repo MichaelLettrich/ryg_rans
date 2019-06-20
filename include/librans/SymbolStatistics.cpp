@@ -4,6 +4,44 @@
 #include "SymbolStatistics.h"
 namespace rans {
 
+SymbolStatistics::SymbolStatistics(const json::Value& document){
+
+
+	// check types
+	assert(document.HasMember(MIN_STR.c_str()));
+	assert(document[MIN_STR.c_str()].IsUint());
+	assert(document.HasMember(MAX_STR.c_str()));
+	assert(document[MAX_STR.c_str()].IsUint());
+	assert(document.HasMember(FREQUENCY_TABLE_STR.c_str()));
+	assert(document[FREQUENCY_TABLE_STR.c_str()].IsArray());
+
+	// read in items
+	min_ = document[MIN_STR.c_str()].GetUint();
+	max_ = document[MAX_STR.c_str()].GetUint();
+
+	for (auto& elem :document[FREQUENCY_TABLE_STR.c_str()].GetArray()){
+		frequencyTable_.push_back(elem.GetUint());
+	}
+	// build cummulative frequency table
+	buildCumulativeFrequencyTable();
+}
+
+json::Value SymbolStatistics::serialize(json::Document::AllocatorType& allocator) const{
+
+	const std::string test = "test";
+	json::Value result(json::kObjectType);
+	result.AddMember(json::StringRef(MIN_STR.c_str()), min_, allocator);
+	result.AddMember(json::StringRef(MAX_STR.c_str()),max_,allocator);
+	result.AddMember(json::StringRef(FREQUENCY_TABLE_STR.c_str()),[&](){
+		json::Value tmp(json::kArrayType);
+		for(auto elem: frequencyTable_){
+			tmp.PushBack(elem,allocator);
+		}
+		return std::move(tmp);
+	}(),allocator);
+	return std::move(result);
+}
+
 void SymbolStatistics::rescaleFrequencyTable(uint32_t newCumulatedFrequency){
 	assert(newCumulatedFrequency >= frequencyTable_.size());
 
@@ -80,7 +118,7 @@ size_t SymbolStatistics::getSymbolRangeBits() const{
 	return std::max(std::ceil(std::log2(max_-min_)),1.0);
 }
 
-std::pair<size_t,size_t> SymbolStatistics::operator[](size_t index) const{
+std::pair<uint32_t,uint32_t> SymbolStatistics::operator[](size_t index) const{
 	return std::make_pair(frequencyTable_[index], cumulativeFrequencyTable_[index]);
 }
 
