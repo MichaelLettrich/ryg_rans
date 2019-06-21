@@ -26,10 +26,10 @@ public:
 		}
 	}
 
-	const T& operator[](size_t index) const
+	const T& operator[](int index) const
 	{
 
-		return symbolTable_[index];
+		return symbolTable_[index - min_];
 	}
 
 private:
