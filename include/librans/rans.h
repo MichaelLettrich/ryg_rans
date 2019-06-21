@@ -12,4 +12,5 @@
 #include "EncoderSymbol.h"
 #include "Dictionary.h"
 #include "SymbolStatistics.h"
+#include "SymbolTable.h"
 

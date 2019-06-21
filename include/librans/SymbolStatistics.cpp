@@ -128,5 +128,34 @@ void SymbolStatistics::buildCumulativeFrequencyTable(){
 	std::partial_sum(frequencyTable_.begin(), frequencyTable_.end(), cumulativeFrequencyTable_.begin()+1);
 }
 
+SymbolStatistics::Iterator SymbolStatistics::begin() const
+{
+	return SymbolStatistics::Iterator(0,*this);
+}
+
+SymbolStatistics::Iterator SymbolStatistics::end() const
+{
+	return SymbolStatistics::Iterator(this->size(),*this);
+}
+
+
+SymbolStatistics::Iterator::Iterator(size_t index, const SymbolStatistics & stats): index_(index), stats_(stats){}
+
+const SymbolStatistics::Iterator& SymbolStatistics::Iterator::operator++()
+				{
+	++index_;
+	return *this;
+				}
+
+std::pair<uint32_t,uint32_t> SymbolStatistics::Iterator::operator*() const
+{
+	return std::move(stats_[index_]);
+}
+
+bool SymbolStatistics::Iterator::operator!=( const Iterator& other) const{
+	return this->index_ != other.index_;
+}
+
+
 }  // namespace rans
 

@@ -22,6 +22,22 @@ namespace rans {
 class SymbolStatistics
 {
 public:
+	class Iterator{
+	public:
+		Iterator(size_t index, const SymbolStatistics & stats);
+
+		const Iterator& operator++();
+
+		std::pair<uint32_t,uint32_t> operator*() const ;
+
+		bool operator!=( const Iterator& other) const;
+
+	private:
+		size_t index_;
+		const SymbolStatistics& stats_;
+	};
+
+public:
 	template <typename T>
 	explicit SymbolStatistics(const std::vector<T>& tokens):min_(0),max_(0),frequencyTable_(),cumulativeFrequencyTable_(){
 		buildFrequencyTable(tokens);
@@ -46,6 +62,10 @@ public:
 	size_t size() const;
 
 	std::pair<uint32_t,uint32_t> operator[](size_t index) const;
+
+	SymbolStatistics::Iterator begin() const;
+	SymbolStatistics::Iterator end() const;
+
 
 	json::Value serialize(json::Document::AllocatorType& allocator) const;
 

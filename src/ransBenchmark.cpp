@@ -28,7 +28,7 @@ static const uint PROB_BITS = 14;
 using coder_t = uint32_t;
 using stream_t = uint8_t;
 using Rans = rans::Coder<coder_t,stream_t>;
-using RansEncSymbol = rans::EncoderSymbol<coder_t>;
+//using RansEncSymbol = rans::EncoderSymbol<coder_t>;
 #else
 ////////////////////////////////////////////////////////////////
 // use this definition for 64bit coder/decoder
@@ -36,7 +36,7 @@ static const uint PROB_BITS = 18;
 using coder_t = uint64_t;
 using stream_t = uint32_t;
 using Rans = rans::Coder<coder_t,stream_t>;
-using RansEncSymbol = rans::EncoderSymbol<coder_t>;
+//using RansEncSymbol = rans::EncoderSymbol<coder_t>;
 #endif
 ////////////////////////////////////////////////////////////////
 
@@ -68,6 +68,13 @@ int main(int argc, char* argv[])
 
 	runSummary.AddMember("SymbolRange",symbolRangeBits,runSummary.GetAllocator());
 
+	//
+	const size_t out_max_size = 32<<20; // 32MB
+	const size_t out_max_elems = out_max_size / sizeof(stream_t);
+	std::vector<stream_t>out_buf(out_max_elems);
+	const stream_t* out_end = &out_buf.back();
+	std::vector<source_t> dec_bytes(tokens.size(),0xcc);
+
 	// cumlative->symbol table
 	// this is super brute force
 	std::vector<source_t>cum2sym(prob_scale);
@@ -75,22 +82,10 @@ int main(int argc, char* argv[])
 		for (uint32_t i=stats[s].second; i < stats[s+1].second; i++)
 			cum2sym[i] = (s + stats.minSymbol());
 
-	const size_t out_max_size = 32<<20; // 32MB
-	const size_t out_max_elems = out_max_size / sizeof(stream_t);
-	std::vector<stream_t>out_buf(out_max_elems);
-	const stream_t* out_end = &out_buf.back();
-	std::vector<source_t> dec_bytes(tokens.size(),0xcc);
-
 	stream_t *rans_begin;
-	std::vector<RansEncSymbol> esyms;
-	std::vector<rans::DecoderSymbol> dsyms;
 
-	for (size_t i=0; i < stats.size(); i++) {
-		//        std::cout << "esyns[" << i << "]: " << stats.freqs[i] << ", " << stats.cum_freqs[i] << ", "<< prob_bits <<  std::endl;
-		const auto symbolStats = stats[i];
-		esyms.emplace_back(symbolStats.second, symbolStats.first, prob_bits);
-		dsyms.emplace_back(symbolStats.second, symbolStats.first);
-	}
+	rans::SymbolTable<rans::EncoderSymbol<coder_t>> encoderSymbolTable(stats,prob_bits);
+	rans::SymbolTable<rans::DecoderSymbol> decoderSymbolTable(stats,prob_bits);
 
 	std::cout << "Source Size :" << tokens.size()*symbolRangeBits * BIT_TO_BYTES << " Bytes"<< std::endl;
 
@@ -110,7 +105,7 @@ int main(int argc, char* argv[])
 
 			//            std::cout << "s: " << s << ", esyns[" << normalized << "]: " << esyms[normalized].freq << std::endl;
 			//            Rans32::encPut(&rans, &ptr, stats.cum_freqs[normalized], stats.freqs[normalized], prob_bits);
-			Rans::encPutSymbol(&rans, &ptr, &esyms[normalized], prob_bits);
+			Rans::encPutSymbol(&rans, &ptr, &encoderSymbolTable[normalized], prob_bits);
 		}
 		Rans::encFlush(&rans, &ptr);
 		rans_begin = ptr;
@@ -126,7 +121,7 @@ int main(int argc, char* argv[])
 			dec_bytes[i] = s;
 			const size_t normalized = s - stats.minSymbol();
 			//            std::cout << "s: " << s << ", dsyms[" << normalized << "]: " << dsyms[normalized].freq << std::endl;
-			Rans::decAdvanceSymbol(&rans, &ptr, &dsyms[normalized], prob_bits);
+			Rans::decAdvanceSymbol(&rans, &ptr, &decoderSymbolTable[normalized], prob_bits);
 		}
 	}),runSummary.GetAllocator());
 
@@ -163,7 +158,7 @@ int main(int argc, char* argv[])
 		if (tokens.size() & 1) {
 			const int s = tokens.back();
 			const size_t normalized = s - stats.minSymbol();
-			Rans::encPutSymbol(&rans0, &ptr, &esyms[normalized], prob_bits);
+			Rans::encPutSymbol(&rans0, &ptr, &encoderSymbolTable[normalized], prob_bits);
 			//            Rans::encPut(&rans0, &ptr, stats.cum_freqs[normalized], stats.freqs[normalized], prob_bits);
 		}
 
@@ -173,8 +168,8 @@ int main(int argc, char* argv[])
 			const size_t normalized1 = s1 - stats.minSymbol();
 			const size_t normalized0 = s0 - stats.minSymbol();
 
-			Rans::encPutSymbol(&rans1, &ptr, &esyms[normalized1], prob_bits);
-			Rans::encPutSymbol(&rans0, &ptr, &esyms[normalized0], prob_bits);
+			Rans::encPutSymbol(&rans1, &ptr, &encoderSymbolTable[normalized1], prob_bits);
+			Rans::encPutSymbol(&rans0, &ptr, &encoderSymbolTable[normalized0], prob_bits);
 			//            Rans::encPut(&rans1, &ptr, stats.cum_freqs[normalized1], stats.freqs[normalized1], prob_bits);
 			//            Rans::encPut(&rans0, &ptr, stats.cum_freqs[normalized0], stats.freqs[normalized0], prob_bits);
 		}
@@ -197,8 +192,8 @@ int main(int argc, char* argv[])
 			dec_bytes[i+1] = s1;
 			const size_t normalized0 = s0 - stats.minSymbol();
 			const size_t normalized1 = s1 - stats.minSymbol();
-			Rans::decAdvanceSymbolStep(&rans0, &dsyms[normalized0], prob_bits);
-			Rans::decAdvanceSymbolStep(&rans1, &dsyms[normalized1], prob_bits);
+			Rans::decAdvanceSymbolStep(&rans0, &decoderSymbolTable[normalized0], prob_bits);
+			Rans::decAdvanceSymbolStep(&rans1, &decoderSymbolTable[normalized1], prob_bits);
 			Rans::decRenorm(&rans0, &ptr);
 			Rans::decRenorm(&rans1, &ptr);
 		}
@@ -208,7 +203,7 @@ int main(int argc, char* argv[])
 			const uint32_t s0 = cum2sym[Rans::decGet(&rans0, prob_bits)];
 			dec_bytes[tokens.size() - 1] = s0;
 			const size_t normalized = s0 - stats.minSymbol();
-			Rans::decAdvanceSymbol(&rans0, &ptr, &dsyms[normalized], prob_bits);
+			Rans::decAdvanceSymbol(&rans0, &ptr, &decoderSymbolTable[normalized], prob_bits);
 		}
 	}),runSummary.GetAllocator());
 
