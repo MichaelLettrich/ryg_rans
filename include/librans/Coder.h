@@ -214,7 +214,7 @@ public:
 				x = (x << STREAM_BITS_) | **pptr;
 				*pptr += 1;
 #ifdef DEBUG
-				assert(x >= lower_bound);
+				assert(x >= LOWER_BOUND_);
 #endif
 			}else{
 				Stream_t* ptr = *pptr;
