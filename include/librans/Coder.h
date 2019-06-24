@@ -58,7 +58,7 @@ public:
 	// Initialize a rANS encoder.
 	static void encInit(State<T>* r)
 	{
-		*r = lower_bound;
+		*r = LOWER_BOUND_;
 	};
 
 	// Encodes a single symbol with range start "start" and frequency "freq".
@@ -155,7 +155,9 @@ public:
 	// See Rans32EncSymbolInit for a description of how this works.
 	static void encPutSymbol(State<T>* r, Stream_t** pptr, EncoderSymbol<T> const* sym, uint32_t scale_bits)
 	{
+#ifdef DEBUG
 		assert(sym->freq != 0); // can't encode symbol with freq=0
+#endif
 
 		// renormalize
 		T x = encRenorm(*r,pptr,sym->freq,scale_bits);
@@ -206,15 +208,17 @@ public:
 	{
 		// renormalize
 		T x = *r;
-		if (x < lower_bound) {
+		if (x < LOWER_BOUND_) {
 			if constexpr(needs64Bit<T>())
 			{
-				x = (x << stream_bits) | **pptr;
+				x = (x << STREAM_BITS_) | **pptr;
 				*pptr += 1;
+#ifdef DEBUG
 				assert(x >= lower_bound);
+#endif
 			}else{
 				Stream_t* ptr = *pptr;
-				do x = (x << stream_bits) | *ptr++; while (x < lower_bound);
+				do x = (x << STREAM_BITS_) | *ptr++; while (x < LOWER_BOUND_);
 				*pptr = ptr;
 			}
 		}
@@ -226,18 +230,18 @@ private:
 	// Renormalize the encoder.
 	static inline State<T> encRenorm(State<T> x, Stream_t** pptr, uint32_t freq, uint32_t scale_bits)
 	{
-		T x_max = ((lower_bound >> scale_bits) << stream_bits) * freq; // this turns into a shift.
+		T x_max = ((LOWER_BOUND_ >> scale_bits) << STREAM_BITS_) * freq; // this turns into a shift.
 		if (x >= x_max) {
 			if constexpr(needs64Bit<T>())
 			{
 				*pptr -= 1;
 				**pptr = static_cast<Stream_t>(x);
-				x >>= stream_bits;
+				x >>= STREAM_BITS_;
 			}else{
 				Stream_t* ptr = *pptr;
 				do {
 					*--ptr = static_cast<Stream_t> (x & 0xff);
-					x >>= stream_bits;
+					x >>= STREAM_BITS_;
 				} while (x >= x_max);
 				*pptr = ptr;
 			}
@@ -249,9 +253,9 @@ private:
 	// Between this and our byte-aligned emission, we use 31 (not 32!) bits.
 	// This is done intentionally because exact reciprocals for 31-bit uints
 	// fit in 32-bit uints: this permits some optimizations during encoding.
-	inline static constexpr T lower_bound = needs64Bit<T>()? (1u << 31) :(1u << 23); // lower bound of our normalization interval
+	inline static constexpr T LOWER_BOUND_ = needs64Bit<T>()? (1u << 31) :(1u << 23); // lower bound of our normalization interval
 
-	inline static constexpr T stream_bits = sizeof(Stream_t)*8; // lower bound of our normalization interval
+	inline static constexpr T STREAM_BITS_ = sizeof(Stream_t)*8; // lower bound of our normalization interval
 
 };
 } // namespace rans
