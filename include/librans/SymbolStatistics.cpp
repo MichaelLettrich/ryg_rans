@@ -130,12 +130,12 @@ void SymbolStatistics::buildCumulativeFrequencyTable(){
 
 SymbolStatistics::Iterator SymbolStatistics::begin() const
 {
-	return SymbolStatistics::Iterator(0,*this);
+	return SymbolStatistics::Iterator(this->minSymbol(),*this);
 }
 
 SymbolStatistics::Iterator SymbolStatistics::end() const
 {
-	return SymbolStatistics::Iterator(this->size(),*this);
+	return SymbolStatistics::Iterator(this->maxSymbol()+1,*this);
 }
 
 

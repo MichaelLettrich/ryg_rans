@@ -78,9 +78,10 @@ int main(int argc, char* argv[])
 	// cumlative->symbol table
 	// this is super brute force
 	std::vector<source_t>cum2sym(prob_scale);
-	for (size_t s=0; s < stats.size(); s++)
-		for (uint32_t i=stats[s].second; i < stats[s+1].second; i++)
-			cum2sym[i] = (s + stats.minSymbol());
+	// go over all symbols
+	for (int symbol=stats.minSymbol(); symbol < stats.maxSymbol()+1; symbol++)
+		for (uint32_t cumulative=stats[symbol].second; cumulative < stats[symbol+1].second; cumulative++)
+			cum2sym[cumulative] = symbol;
 
 	stream_t *rans_begin;
 
