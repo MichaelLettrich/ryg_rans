@@ -7,5 +7,8 @@ d		:= $(dir_)
 dir_ := $(d)/librans
 include $(dir_)/Rules.mk
 
+dir_ := $(d)/libcommon
+include $(dir_)/Rules.mk
+
 d		:= $(dirstack_$(sp))
 sp		:= $(basename $(sp))

@@ -8,7 +8,7 @@ all: tgts
 ifdef DEBUG
 CXXFLAGS_ALL += -O0 -ggdb3 -DDEBUG
 else
-CXXFLAGS_ALL += -O3
+CXXFLAGS_ALL += -O2
 endif
 
 # include all modules

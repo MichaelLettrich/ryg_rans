@@ -11,10 +11,12 @@
 #include "rapidjson/document.h"
 #include "rapidjson/istreamwrapper.h"
 
+#include "docopt.h"
 
 #include "librans/rans.h"
 
-#include "helper.h"
+#include "libcommon/executionTimer.h"
+#include "libcommon/helper.h"
 
 // This is just the sample program. All the meat is in rans_byte.h.
 namespace json = rapidjson;
@@ -40,24 +42,90 @@ using Rans = rans::Coder<coder_t,stream_t>;
 #endif
 ////////////////////////////////////////////////////////////////
 
+static const char USAGE[] =
+		R"(ransBenchmark.
+
+		    Usage:
+			  ransBenchmark
+              ransBenchmark <fileName> [-r <reps>] [-b <bits>] [-d <dict>] [-e <createdDict>]
+		      ransBenchmark (-h | --help)
+		      ransBenchmark --version
+
+		    Options:
+		      -h --help                  Show this screen.
+		      --version                  Show version.
+              -r <reps> --repetitions <reps>  How many times do we repeat the measurements.
+              -b <bits> --bits <bits>    Resample dictionary to Bits.
+			  -d <dict> --dict <dict>    Dictionary.
+		      -e <path> --export <path>  Export dictionary.
+
+		)";
+
 int main(int argc, char* argv[])
 {
 	json::Document runSummary;
 	runSummary.SetObject();
 
-	cmd_args parameters;
-	read_args(argc, argv,parameters);
-	static const uint32_t prob_bits = (parameters.prob_bits >0) ? parameters.prob_bits : PROB_BITS;
+	auto args = docopt::docopt(USAGE,{argv +1, argv + argc},true,"ransBenchmark-dev");
+
+
+	const std::string filename = [&](){
+		if(args["<fileName>"].isString()){
+			return args["<fileName>"].asString();
+		}else{
+			const std::string name{"book1"};
+			return name;
+			}
+	}();
+
+	const uint32_t prob_bits = [&](){
+		try {
+			return static_cast<uint32_t>(args["--bits"].asLong());
+		} catch (std::runtime_error& e) {
+			return PROB_BITS;
+		}
+	}();
+
+	const std::string dictPath = [&](){
+		if(args["--dict"].isString()){
+			return args["--dict"].asString();
+		}else{
+			return std::string();
+			}
+	}();
+
+	const std::string exportDictPath = [&](){
+		if(args["--export"].isString()){
+			return args["--export"].asString();
+		}else{
+			return std::string();
+			}
+	}();
+
+const uint32_t repetitions = [&](){
+		try {
+			return static_cast<uint32_t>(args["--repetitions"].asLong());
+		} catch (std::runtime_error& e) {
+			return REPETITIONS;
+		}
+	}();
+
+
+
 	static const uint32_t prob_scale = 1 << prob_bits;
 
-	std::cout << "Filename: " << parameters.filename << std::endl;
+	std::cout << "Filename: " << filename << std::endl;
 	std::cout << "Probability Bits: " << prob_bits << std::endl;
+	std::cout << "Dictionary Path: " << dictPath << std::endl;
+	std::cout << "Export Path: " << exportDictPath << std::endl;
+	std::cout << "Repetitions: " << repetitions << std::endl;
 
-	runSummary.AddMember("Filename",json::Value().SetString(parameters.filename.c_str(),runSummary.GetAllocator()),runSummary.GetAllocator());
+	runSummary.AddMember("Filename",json::Value().SetString(filename.c_str(),runSummary.GetAllocator()),runSummary.GetAllocator());
 	runSummary.AddMember("ProbabilityBits",prob_bits,runSummary.GetAllocator());
 
 	std::vector<source_t> tokens;
-	read_file(parameters.filename,&tokens);
+	read_file(filename,&tokens);
+	std::cout << std::endl;
 	std::cout << "Symbols:" << tokens.size() << std::endl;
 	runSummary.AddMember("NumberOfSymbols",tokens.size(),runSummary.GetAllocator());
 
@@ -83,7 +151,7 @@ int main(int argc, char* argv[])
 		for (uint32_t cumulative=stats[symbol].second; cumulative < stats[symbol+1].second; cumulative++)
 			cum2sym[cumulative] = symbol;
 
-	stream_t *rans_begin;
+	stream_t *rans_begin = nullptr;
 
 	rans::SymbolTable<rans::EncoderSymbol<coder_t>> encoderSymbolTable(stats,prob_bits);
 	rans::SymbolTable<rans::DecoderSymbol> decoderSymbolTable(stats,prob_bits);
@@ -94,7 +162,7 @@ int main(int argc, char* argv[])
 	std::cout << std::endl <<"Non-Interleaved:" << std::endl;
 	json::Value nonInterleaved(json::kObjectType);
 
-	nonInterleaved.AddMember("Encode",timedRun(runSummary.GetAllocator(), symbolRangeBits*tokens.size(), ExecutionMode::NonInterleaved,CodingMode::Encode,REPETITIONS,
+	nonInterleaved.AddMember("Encode",timedRun(runSummary.GetAllocator(), symbolRangeBits*tokens.size(), ExecutionMode::NonInterleaved,CodingMode::Encode,repetitions,
 			[&](){
 		rans::State<coder_t> rans;
 		Rans::encInit(&rans);
@@ -110,7 +178,7 @@ int main(int argc, char* argv[])
 		rans_begin = ptr;
 	}),runSummary.GetAllocator());
 
-	nonInterleaved.AddMember("Decode",timedRun(runSummary.GetAllocator(),symbolRangeBits*tokens.size(),ExecutionMode::NonInterleaved,CodingMode::Decode,REPETITIONS,[&](){
+	nonInterleaved.AddMember("Decode",timedRun(runSummary.GetAllocator(),symbolRangeBits*tokens.size(),ExecutionMode::NonInterleaved,CodingMode::Decode,repetitions,[&](){
 		rans::State<coder_t> rans;
 		stream_t* ptr = rans_begin;
 		Rans::decInit(&rans, &ptr);
@@ -144,7 +212,7 @@ int main(int argc, char* argv[])
 	std::cout << std::endl <<"Interleaved:" << std::endl;
 	json::Value interleaved(json::kObjectType);
 
-	interleaved.AddMember("Encode",timedRun(runSummary.GetAllocator(), symbolRangeBits*tokens.size(), ExecutionMode::Interleaved,CodingMode::Encode,REPETITIONS,
+	interleaved.AddMember("Encode",timedRun(runSummary.GetAllocator(), symbolRangeBits*tokens.size(), ExecutionMode::Interleaved,CodingMode::Encode,repetitions,
 			[&](){
 		rans::State<coder_t> rans0, rans1;
 		Rans::encInit(&rans0);
@@ -172,7 +240,7 @@ int main(int argc, char* argv[])
 		rans_begin = ptr;
 	}),runSummary.GetAllocator());
 
-	interleaved.AddMember("Decode",timedRun(runSummary.GetAllocator(), symbolRangeBits*tokens.size(), ExecutionMode::Interleaved,CodingMode::Decode,REPETITIONS,
+	interleaved.AddMember("Decode",timedRun(runSummary.GetAllocator(), symbolRangeBits*tokens.size(), ExecutionMode::Interleaved,CodingMode::Decode,repetitions,
 			[&](){
 		rans::State<coder_t> rans0, rans1;
 		stream_t* ptr = rans_begin;

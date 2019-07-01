@@ -1,4 +1,4 @@
-CXXFLAGS_ALL = -MD -MP -Wall -Wswitch -Werror -pedantic -g -std=c++17 -march=native -fno-strict-aliasing -I${RAPIDJSON_PATH}
+CXXFLAGS_ALL = -MD -MP -Wall -Wswitch -Werror -pedantic -g -std=c++17 -march=native -fno-strict-aliasing -I${RAPID_JSON_HOME}/include  
 LDFLAGS =  
 LDLIBS = 
 

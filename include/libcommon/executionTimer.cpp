@@ -1,31 +1,13 @@
-#include "helper.h"
+/*
+ * executionTimer.cpp
+ *
+ *  Created on: Jul 1, 2019
+ *      Author: Michael Lettrich (michael.lettrich@cern.ch)
+ */
 
-#include <cstdarg>
-#include <cstdlib>
+#include <stdexcept>
 
-void panic(const char *fmt, ...)
-{
-    va_list arg;
-
-    va_start(arg, fmt);
-    fputs("Error: ", stderr);
-    vfprintf(stderr, fmt, arg);
-    va_end(arg);
-    fputs("\n", stderr);
-
-    exit(1);
-}
-
-void read_args(int argc, char** argv, cmd_args& args){
-
-    if (argc > 1)
-    {
-        args.filename = argv[1];
-        args.prob_bits = (argc>2) ? std::stoi(argv[2]):0;
-    }else{
-    	throw std::runtime_error("syntax main.exe <filename> [<probability_bits>]");
-    }
-}
+#include "executionTimer.h"
 
 std::string toString(ExecutionMode mode)
 {

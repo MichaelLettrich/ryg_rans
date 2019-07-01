@@ -4,7 +4,6 @@ sp 		:= $(sp).x
 dirstack_$(sp)	:= $(d)
 d		:= $(dir_)
 
-SRC_$(d) :=  $(d)/helper.cpp
 OBJS_$(d) := $(subst .cpp,.o,$(SRC_$(d)))
 DEPS_$(d) := $(subst .cpp,.d,$(SRC_$(d)))
 
@@ -14,11 +13,16 @@ $(OBJS_$(d)): $(SRC_$(d))
 
 TGT_BIN:= $(TGT_BIN) rans32benchmark.exe rans64benchmark.exe
 
-rans64benchmark.exe: CXXFLAGS_TGT:= $(CXXFLAGS_TGT) -I$(d) -Iinclude
+INCLUDE_STRING := -I$(d) -Iinclude -I${DOCOPT_HOME}
+LINKER_STRING := -L${DOCOPT_HOME} -l:libdocopt.a
+
+rans64benchmark.exe: CXXFLAGS_TGT:= $(CXXFLAGS_TGT) $(INCLUDE_STRING)
+rans64benchmark.exe: LDLIBS_TGT:= $(LDLIBS_TGT) $(LINKER_STRING) 
 rans64benchmark.exe: $(d)/ransBenchmark.cpp $(OBJS_$(d)) $(TGT_LIB)
 	$(COMPLINK)
 
-rans32benchmark.exe: CXXFLAGS_TGT:= $(CXXFLAGS_TGT) -I$(d) -Iinclude -Drans32
+rans32benchmark.exe: CXXFLAGS_TGT:= $(CXXFLAGS_TGT) $(INCLUDE_STRING) -Drans32
+rans32benchmark.exe: LDLIBS_TGT:= $(LDLIBS_TGT) $(LINKER_STRING) 
 rans32benchmark.exe: $(d)/ransBenchmark.cpp  $(OBJS_$(d)) $(TGT_LIB)
 	$(COMPLINK)
 
