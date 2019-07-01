@@ -5,3 +5,7 @@
 .project
 .cproject
 .settings
+
+env.sh
+
+lib/*
