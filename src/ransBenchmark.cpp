@@ -66,6 +66,10 @@ int main(int argc, char* argv[])
 	json::Document runSummary;
 	runSummary.SetObject();
 
+
+///////////////////////////////////////////////////////////////////////////////////////////
+// Parsing arguments
+//////////////////////////////////////////////////////////////////////////////////////////
 	auto args = docopt::docopt(USAGE,{argv +1, argv + argc},true,"ransBenchmark-dev");
 
 
@@ -110,9 +114,9 @@ const uint32_t repetitions = [&](){
 		}
 	}();
 
+	//////////////////////////////////////////////////////////////////////////////////////////
 
-
-	static const uint32_t prob_scale = 1 << prob_bits;
+	const uint32_t prob_scale = 1 << prob_bits;
 
 	std::cout << "Filename: " << filename << std::endl;
 	std::cout << "Probability Bits: " << prob_bits << std::endl;
@@ -123,20 +127,34 @@ const uint32_t repetitions = [&](){
 	runSummary.AddMember("Filename",json::Value().SetString(filename.c_str(),runSummary.GetAllocator()),runSummary.GetAllocator());
 	runSummary.AddMember("ProbabilityBits",prob_bits,runSummary.GetAllocator());
 
+	//Read in file to be compressed
 	std::vector<source_t> tokens;
 	read_file(filename,&tokens);
 	std::cout << std::endl;
 	std::cout << "Symbols:" << tokens.size() << std::endl;
 	runSummary.AddMember("NumberOfSymbols",tokens.size(),runSummary.GetAllocator());
 
-	rans::SymbolStatistics stats(tokens);
-	stats.rescaleFrequencyTable(prob_scale);
-	auto symbolRangeBits = stats.getSymbolRangeBits();
-	std::cout << "Min: "<< stats.minSymbol() <<" Max: " << stats.maxSymbol() << " Range: " << symbolRangeBits  << "Bit" << std::endl;
+	std::unique_ptr<rans::SymbolStatistics> stats(nullptr);
+	// read in or create dictionary
+	if (dictPath.empty()){
+		// no dict path, create tokens.
+		stats = std::make_unique<rans::SymbolStatistics>(tokens);
+	}else{
+		// open file
+		std::ifstream dictFile(dictPath);
+		json::IStreamWrapper dictReader(dictFile);
+		json::Document statsJSON;
+		statsJSON.ParseStream(dictReader);
+		stats = std::make_unique<rans::SymbolStatistics>(statsJSON.GetObject());
+	}
+
+	stats->rescaleFrequencyTable(prob_scale);
+	auto symbolRangeBits = stats->getSymbolRangeBits();
+	std::cout << "Min: "<< stats->minSymbol() <<" Max: " << stats->maxSymbol() << " Range: " << symbolRangeBits  << "Bit" << std::endl;
 
 	runSummary.AddMember("SymbolRange",symbolRangeBits,runSummary.GetAllocator());
 
-	//
+
 	const size_t out_max_size = 32<<20; // 32MB
 	const size_t out_max_elems = out_max_size / sizeof(stream_t);
 	std::vector<stream_t>out_buf(out_max_elems);
@@ -147,14 +165,14 @@ const uint32_t repetitions = [&](){
 	// this is super brute force
 	std::vector<source_t>cum2sym(prob_scale);
 	// go over all symbols
-	for (int symbol=stats.minSymbol(); symbol < stats.maxSymbol()+1; symbol++)
-		for (uint32_t cumulative=stats[symbol].second; cumulative < stats[symbol+1].second; cumulative++)
+	for (int symbol=stats->minSymbol(); symbol < stats->maxSymbol()+1; symbol++)
+		for (uint32_t cumulative=(*stats)[symbol].second; cumulative < (*stats)[symbol+1].second; cumulative++)
 			cum2sym[cumulative] = symbol;
 
 	stream_t *rans_begin = nullptr;
 
-	rans::SymbolTable<rans::EncoderSymbol<coder_t>> encoderSymbolTable(stats,prob_bits);
-	rans::SymbolTable<rans::DecoderSymbol> decoderSymbolTable(stats,prob_bits);
+	rans::SymbolTable<rans::EncoderSymbol<coder_t>> encoderSymbolTable(*stats,prob_bits);
+	rans::SymbolTable<rans::DecoderSymbol> decoderSymbolTable(*stats,prob_bits);
 
 	std::cout << "Source Size :" << tokens.size()*symbolRangeBits * BIT_TO_BYTES << " Bytes"<< std::endl;
 
@@ -171,7 +189,7 @@ const uint32_t repetitions = [&](){
 		for (size_t i=tokens.size(); i > 0; i--) { // NB: working in reverse!
 			source_t s = tokens[i-1];
 			//            std::cout << "s: " << s << ", esyns[" << normalized << "]: " << esyms[normalized].freq << std::endl;
-			//            Rans32::encPut(&rans, &ptr, stats.cum_freqs[normalized], stats.freqs[normalized], prob_bits);
+			//            Rans32::encPut(&rans, &ptr, stats->cum_freqs[normalized], stats->freqs[normalized], prob_bits);
 			Rans::encPutSymbol(&rans, &ptr, &encoderSymbolTable[s], prob_bits);
 		}
 		Rans::encFlush(&rans, &ptr);
@@ -224,7 +242,7 @@ const uint32_t repetitions = [&](){
 		if (tokens.size() & 1) {
 			const int s = tokens.back();
 			Rans::encPutSymbol(&rans0, &ptr, &encoderSymbolTable[s], prob_bits);
-			//            Rans::encPut(&rans0, &ptr, stats.cum_freqs[normalized], stats.freqs[normalized], prob_bits);
+			//            Rans::encPut(&rans0, &ptr, stats->cum_freqs[normalized], stats->freqs[normalized], prob_bits);
 		}
 
 		for (size_t i=(tokens.size() & ~1); i > 0; i -= 2) { // NB: working in reverse!
@@ -232,8 +250,8 @@ const uint32_t repetitions = [&](){
 			const int s0 = tokens[i-2];
 			Rans::encPutSymbol(&rans1, &ptr, &encoderSymbolTable[s1], prob_bits);
 			Rans::encPutSymbol(&rans0, &ptr, &encoderSymbolTable[s0], prob_bits);
-			//            Rans::encPut(&rans1, &ptr, stats.cum_freqs[normalized1], stats.freqs[normalized1], prob_bits);
-			//            Rans::encPut(&rans0, &ptr, stats.cum_freqs[normalized0], stats.freqs[normalized0], prob_bits);
+			//            Rans::encPut(&rans1, &ptr, stats->cum_freqs[normalized1], stats->freqs[normalized1], prob_bits);
+			//            Rans::encPut(&rans0, &ptr, stats->cum_freqs[normalized0], stats->freqs[normalized0], prob_bits);
 		}
 		Rans::encFlush(&rans1, &ptr);
 		Rans::encFlush(&rans0, &ptr);
@@ -279,7 +297,18 @@ const uint32_t repetitions = [&](){
 
 	std::ofstream f("summary.json");
 	json::OStreamWrapper osw(f);
-	rapidjson::PrettyWriter<json::OStreamWrapper> writer(osw);
+	json::PrettyWriter<json::OStreamWrapper> writer(osw);
 	runSummary.Accept(writer);
+
+
+	//shall we serialize the symbol statistics?
+	if (!exportDictPath.empty()){
+		json::Document d;
+		std::ofstream f(exportDictPath);
+		json::OStreamWrapper osw(f);
+		json::PrettyWriter<json::OStreamWrapper> writer(osw);
+		stats->serialize(d.GetAllocator()).Accept(writer);
+	}
+
 	return 0;
 }
