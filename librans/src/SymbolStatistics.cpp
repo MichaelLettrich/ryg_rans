@@ -1,7 +1,7 @@
 
 #include <cmath>
 
-#include "SymbolStatistics.h"
+#include "librans/SymbolStatistics.h"
 namespace rans {
 
 SymbolStatistics::SymbolStatistics(const json::Value& document){

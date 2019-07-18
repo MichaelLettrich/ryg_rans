@@ -1,4 +1,4 @@
-#include "../libcommon/helper.h"
+#include "libcommon/helper.h"
 
 #include <cstdarg>
 #include <cstdlib>
@@ -17,12 +17,6 @@ void panic(const char *fmt, ...)
 }
 
 void parseArgs(int argc, char** argv, cmd_args& args){
-
-	switch(argc){
-	case 1:
-
-	}
-
     if (argc > 1)
     {
         args.filename = argv[1];
