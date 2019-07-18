@@ -1,7 +1,11 @@
-*.o
-*.d
-*.exe
-
 .project
 .cproject
 .settings
+
+env.sh
+
+lib/*
+
+release
+debug
+rans
