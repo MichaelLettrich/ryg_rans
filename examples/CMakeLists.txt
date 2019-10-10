@@ -6,24 +6,30 @@ project(examples LANGUAGES CXX)
 find_package(RapidJSON 1.0 REQUIRED MODULE)
 find_package(docopt CONFIG REQUIRED )
 
+set(tgts "")
+
 # add a 32 bit and 64bit executable of ransbenchmark.
-foreach(exec rans32Benchmark.exe;rans64Benchmark.exe)
-  add_executable(${exec} ransBenchmark.cpp)
-  # the 32 bit version required the rans32 define
-  if("${exec}" STREQUAL "rans32Benchmark.exe")
-	target_compile_definitions(${exec} PRIVATE -Drans32)
-	message("32bit eneabled")
-  endif()
-	target_link_libraries(${exec}
-		PRIVATE
-			RapidJSON::RapidJSON
-			docopt_s
-			rans
-			common
-	)
+foreach(arch 32;64)
+  foreach(bits 8;16;32)
+	set(exec "rans${arch}Benchmark${bits}.exe")
+	add_executable(${exec} ransBenchmark.cpp)
+	list(APPEND tgts ${exec})
+	target_compile_definitions(${exec} PRIVATE -DSOURCE_T=uint${bits}_t)
+	# the 32 bit version required the rans32 define
+	if("${arch}" STREQUAL "32")
+		target_compile_definitions(${exec} PRIVATE -Drans32)
+	endif()
+		target_link_libraries(${exec}
+			PRIVATE
+				RapidJSON::RapidJSON
+				docopt_s
+				rans
+				common
+		)
+  endforeach()
 endforeach()
 
 include(GNUInstallDirs)
-install (TARGETS rans32Benchmark.exe rans64Benchmark.exe 
+install (TARGETS ${tgts} 
 	RUNTIME DESTINATION bin
 	)
