@@ -1,4 +1,5 @@
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <fstream>
@@ -193,7 +194,9 @@ int main(int argc, char* argv[]) {
                                                                      prob_bits);
   rans::SymbolTable<rans::DecoderSymbol> decoderSymbolTable(*stats, prob_bits);
 
-  std::cout << "Source Size :" << tokens.size() * symbolRangeBits * BIT_TO_BYTES
+  std::cout << "Source Size :"
+            << static_cast<uint32_t>(std::ceil(1.0 * tokens.size() *
+                                               symbolRangeBits / BIT_TO_BYTES))
             << " Bytes" << std::endl;
 
   // ---- regular rANS encode/decode. Typical usage.
