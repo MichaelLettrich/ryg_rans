@@ -117,6 +117,14 @@ int main(int argc, char* argv[]) {
     }
   }();
 
+  const std::string logPath = [&]() {
+    if (args["--log"].isString()) {
+      return args["--log"].asString();
+    } else {
+      return std::string("summary.json");
+    }
+  }();
+
   //////////////////////////////////////////////////////////////////////////////////////////
 
   const uint32_t prob_scale = 1 << prob_bits;
@@ -352,7 +360,7 @@ int main(int argc, char* argv[]) {
   else
     printf("ERROR: Decoder failed tests.\n");
 
-  std::ofstream f("summary.json");
+  std::ofstream f(logPath);
   json::OStreamWrapper osw(f);
   json::PrettyWriter<json::OStreamWrapper> writer(osw);
   runSummary.Accept(writer);
