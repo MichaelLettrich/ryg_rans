@@ -41,7 +41,7 @@ json::Value timedRun(json::Document::AllocatorType& runSummaryAllocator,
   const std::string execModeStr = toString(executionMode);
   const std::string codingModeStr = toString(codingMode);
 
-  json::Value timings(json::kArrayType);
+  json::Value bandwidths(json::kArrayType);
   std::cout << "Bandwidth " << codingModeStr << ": [";
 
   // run benchmark a certain amount of times
@@ -52,12 +52,14 @@ json::Value timedRun(json::Document::AllocatorType& runSummaryAllocator,
     ////Bit -> MiB
 
     const auto time = duration.count();
-    timings.PushBack(time, runSummaryAllocator);
-    std::cout << std::setprecision(4) << time;
+    const double bandwidth =
+        static_cast<double>(sizeUncompressed) / (time * MIB_TO_BITS);
+    bandwidths.PushBack(time, runSummaryAllocator);
+    std::cout << std::setprecision(4) << bandwidth;
     if (run < numberOfRuns - 1) {
       std::cout << ", ";
     }
   }
-  std::cout << "] s" << std::endl;
-  return std::move(timings);
+  std::cout << "] MiB/s" << std::endl;
+  return std::move(bandwidths);
 }

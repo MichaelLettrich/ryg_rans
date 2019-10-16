@@ -12,22 +12,18 @@
 namespace rans {
 
 // Decoder symbols are straightforward.
-struct DecoderSymbol
-{
-	// Initialize a decoder symbol to start "start" and frequency "freq"
-	DecoderSymbol(uint32_t start, uint32_t freq, uint32_t probabilityBits):start(start), freq(freq)
-	{
+struct DecoderSymbol {
+  // Initialize a decoder symbol to start "start" and frequency "freq"
+  DecoderSymbol(uint32_t start, uint32_t freq, uint32_t probabilityBits)
+      : start(start), freq(freq) {
+    (void)probabilityBits;  // silence compiler warning.
+    // TODO(lettrich): a check should be definitely done here.
+    //		RansAssert(start <= (1 << 16));
+    //		RansAssert(freq <= (1 << 16) - start);
+  };
 
-		//TODO(lettrich): a check should be definitely done here.
-		//		RansAssert(start <= (1 << 16));
-		//		RansAssert(freq <= (1 << 16) - start);
-	};
-
-	uint32_t start;     // Start of range.
-	uint32_t freq;      // Symbol frequency.
+  uint32_t start;  // Start of range.
+  uint32_t freq;   // Symbol frequency.
 };
 
 }  // namespace rans
-
-
-

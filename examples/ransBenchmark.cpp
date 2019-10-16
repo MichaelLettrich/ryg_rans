@@ -52,18 +52,19 @@ static const char USAGE[] =
 
 		    Usage:
 			  ransBenchmark
-              ransBenchmark <fileName> [-r <reps>] [-b <bits>] [-d <dict>] [-e <createdDict>] [-l <log> ]
+              ransBenchmark <fileName> [-r <reps>] [-b <bits>] [-d <dict>] [-d <dict>] [-e <createdDict>] [-l <log> ]
 		      ransBenchmark (-h | --help)
 		      ransBenchmark --version
 
 		    Options:
-		      -h --help                  Show this screen.
-		      --version                  Show version.
-              -r <reps> --repetitions <reps>  How many times do we repeat the measurements.
-              -b <bits> --bits <bits>    Resample dictionary to Bits.
-			  -d <dict> --dict <dict>    Dictionary.
-		      -e <path> --export <path>  Export dictionary.
-              -l <log> --log <log>       Log in JSON format.    
+		      -h --help                         Show this screen.
+		      --version                         Show version.
+              -s <samples> --samples <samples>  How many times do we repeat the measurements.
+              -b <bits> --bits <bits>           Resample dictionary to Bits.
+              -r <bits> --range <bits>          Range of the source data
+			  -d <dict> --dict <dict>           Dictionary.
+		      -e <path> --export <path>         Export dictionary.
+              -l <log> --log <log>              Log in JSON format.    
 
 		)";
 
@@ -94,6 +95,14 @@ int main(int argc, char* argv[]) {
     }
   }();
 
+  uint32_t symbolRangeBits = [&]() {
+    try {
+      return static_cast<uint32_t>(args["--range"].asLong());
+    } catch (std::runtime_error& e) {
+      return static_cast<uint32_t>(0);
+    }
+  }();
+
   const std::string dictPath = [&]() {
     if (args["--dict"].isString()) {
       return args["--dict"].asString();
@@ -112,7 +121,7 @@ int main(int argc, char* argv[]) {
 
   const uint32_t repetitions = [&]() {
     try {
-      return static_cast<uint32_t>(args["--repetitions"].asLong());
+      return static_cast<uint32_t>(args["--samples"].asLong());
     } catch (std::runtime_error& e) {
       return REPETITIONS;
     }
@@ -154,7 +163,7 @@ int main(int argc, char* argv[]) {
   // read in or create dictionary
   if (dictPath.empty()) {
     // no dict path, create tokens.
-    stats = std::make_unique<rans::SymbolStatistics>(tokens);
+    stats = std::make_unique<rans::SymbolStatistics>(tokens, symbolRangeBits);
   } else {
     // open file
     std::ifstream dictFile(dictPath);
@@ -165,7 +174,7 @@ int main(int argc, char* argv[]) {
   }
 
   stats->rescaleFrequencyTable(prob_scale);
-  auto symbolRangeBits = stats->getSymbolRangeBits();
+  symbolRangeBits = stats->getSymbolRangeBits();
   std::cout << "Min: " << stats->minSymbol() << " Max: " << stats->maxSymbol()
             << " Range: " << symbolRangeBits << "Bit" << std::endl;
 
@@ -185,8 +194,10 @@ int main(int argc, char* argv[]) {
   for (int symbol = stats->minSymbol(); symbol < stats->maxSymbol() + 1;
        symbol++)
     for (uint32_t cumulative = (*stats)[symbol].second;
-         cumulative < (*stats)[symbol + 1].second; cumulative++)
+         cumulative < (*stats)[symbol + 1].second; cumulative++) {
       cum2sym[cumulative] = symbol;
+      //      std::cout << "cum2sym[" << cumulative << "]: " << symbol;
+    }
 
   stream_t* rans_begin = nullptr;
 
@@ -196,7 +207,7 @@ int main(int argc, char* argv[]) {
 
   std::cout << "Source Size :"
             << static_cast<uint32_t>(std::ceil(1.0 * tokens.size() *
-                                               symbolRangeBits / BIT_TO_BYTES))
+                                               symbolRangeBits / BYTE_TO_BITS))
             << " Bytes" << std::endl;
 
   // ---- regular rANS encode/decode. Typical usage.

@@ -9,7 +9,7 @@
 
 #include <cstdint>
 
-static constexpr uint32_t BIT_TO_BYTES = 8;
-static constexpr uint32_t BIT_TO_MIB = 1048576 * BIT_TO_BYTES;
+static constexpr uint32_t BYTE_TO_BITS = 8;
+static constexpr uint32_t MIB_TO_BITS = 1048576 * BYTE_TO_BITS;
 
 
