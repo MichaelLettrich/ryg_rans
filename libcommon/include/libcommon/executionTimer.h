@@ -54,7 +54,7 @@ json::Value timedRun(json::Document::AllocatorType& runSummaryAllocator,
     const auto time = duration.count();
     const double bandwidth =
         static_cast<double>(sizeUncompressed) / (time * MIB_TO_BITS);
-    bandwidths.PushBack(time, runSummaryAllocator);
+    bandwidths.PushBack(bandwidth, runSummaryAllocator);
     std::cout << std::setprecision(4) << bandwidth;
     if (run < numberOfRuns - 1) {
       std::cout << ", ";
