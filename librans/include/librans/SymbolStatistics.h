@@ -87,12 +87,22 @@ class SymbolStatistics {
 template <typename T>
 void SymbolStatistics::buildFrequencyTable(const std::vector<T>& tokens,
                                            size_t range) {
+  // find min_ and max_
+  const auto minmax = std::minmax_element(tokens.begin(), tokens.end());
+
   if (range > 0) {
     min_ = 0;
     max_ = (1 << range) - 1;
+
+    // do checks
+    if (static_cast<unsigned int>(min_) > *minmax.first) {
+      throw std::runtime_error("min of data too small for given minimum");
+    }
+
+    if (static_cast<unsigned int>(max_) < *minmax.second) {
+      throw std::runtime_error("max of data too big for given maximum");
+    }
   } else {
-    // find min_ and max_
-    const auto minmax = std::minmax_element(tokens.begin(), tokens.end());
     min_ = *minmax.first;
     max_ = *minmax.second;
   }
