@@ -52,7 +52,7 @@ static const char USAGE[] =
 
 		    Usage:
 			  ransBenchmark
-              ransBenchmark <fileName> [-r <reps>] [-b <bits>] [-d <dict>] [-d <dict>] [-e <createdDict>] [-l <log> ]
+              ransBenchmark <fileName> [-s <samples>] [-b <bits>] [-r <dict>] [-d <dict>] [-e <createdDict>] [-l <log> ]
 		      ransBenchmark (-h | --help)
 		      ransBenchmark --version
 
@@ -181,7 +181,7 @@ int main(int argc, char* argv[]) {
   runSummary.AddMember("SymbolRange", symbolRangeBits,
                        runSummary.GetAllocator());
 
-  const size_t out_max_size = 32 << 20;  // 32MB
+  const size_t out_max_size = 256 << 20;  // 256MB
   const size_t out_max_elems = out_max_size / sizeof(stream_t);
   std::vector<stream_t> out_buf(out_max_elems);
   const stream_t* out_end = &out_buf.back();
