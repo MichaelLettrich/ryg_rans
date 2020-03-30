@@ -50,23 +50,23 @@ using Rans = rans::Coder<coder_t, stream_t>;
 static const char USAGE[] =
     R"(ransBenchmark.
 
-		    Usage:
-			  ransBenchmark
-              ransBenchmark <fileName> [-s <samples>] [-b <bits>] [-r <dict>] [-d <dict>] [-e <createdDict>] [-l <log> ]
-		      ransBenchmark (-h | --help)
-		      ransBenchmark --version
+        Usage:
+          ransBenchmark
+          ransBenchmark <fileName> [-s <samples>] [-b <bits>] [-r <dict>] [-d <dict>] [-e <createdDict>] [-l <log> ]
+          ransBenchmark (-h | --help)
+          ransBenchmark --version
 
-		    Options:
-		      -h --help                         Show this screen.
-		      --version                         Show version.
-              -s <samples> --samples <samples>  How many times do we repeat the measurements.
-              -b <bits> --bits <bits>           Resample dictionary to Bits.
-              -r <bits> --range <bits>          Range of the source data
-			  -d <dict> --dict <dict>           Dictionary.
-		      -e <path> --export <path>         Export dictionary.
-              -l <log> --log <log>              Log in JSON format.    
+        Options:
+          -h --help                         Show this screen.
+          --version                         Show version.
+          -s <samples> --samples <samples>  How many times do we repeat the measurements.
+          -b <bits> --bits <bits>           Resample dictionary to Bits.
+          -r <bits> --range <bits>          Range of the source data
+          -d <dict> --dict <dict>           Dictionary.
+          -e <path> --export <path>         Export dictionary.
+          -l <log> --log <log>              Log in JSON format.    
 
-		)";
+    )";
 
 int main(int argc, char* argv[]) {
   json::Document runSummary;
